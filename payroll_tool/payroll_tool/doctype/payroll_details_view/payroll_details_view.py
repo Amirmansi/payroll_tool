@@ -39,7 +39,7 @@ class PayrollDetailsView(Document):
             "Salary Slip",
             filters={
                 "payroll_entry": self.payroll_entry,
-                "docstatus": 1
+                "docstatus": 0
             },
             fields=["name"],
             order_by="employee_name asc"
