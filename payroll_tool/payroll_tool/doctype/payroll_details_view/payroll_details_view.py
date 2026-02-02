@@ -1,6 +1,3 @@
-# Copyright (c) 2024, Your Company and contributors
-# For license information, please see license.txt
-
 import frappe
 from frappe.model.document import Document
 from frappe import _
@@ -9,45 +6,28 @@ class PayrollDetailsView(Document):
     def validate(self):
         """التحقق من صحة البيانات قبل الحفظ"""
         if self.payroll_entry:
-            # التحقق من أن Payroll Entry مرحل
-            payroll_doc = frappe.get_doc("Payroll Entry", self.payroll_entry)
-            if payroll_doc.docstatus != 1:
-                frappe.throw(_("الرجاء اختيار Payroll Entry مرحل (Submitted)"))
-            
-            # تحميل بيانات الموظفين
+            # تحميل بيانات الموظفين (Draft و Submitted)
             self.load_employee_data()
-    
-    def before_save(self):
-        """قبل الحفظ"""
-        pass
-    
-    def on_submit(self):
-        """عند الترحيل"""
-        pass
-    
-    def on_cancel(self):
-        """عند الإلغاء"""
-        pass
     
     def load_employee_data(self):
         """تحميل بيانات الموظفين من كشوف الرواتب"""
         # مسح البيانات القديمة
         self.employees = []
         
-        # جلب جميع Salary Slips المرتبطة
+        # جلب جميع Salary Slips المرتبطة (Draft + Submitted)
         salary_slips = frappe.get_all(
             "Salary Slip",
             filters={
                 "payroll_entry": self.payroll_entry,
-                "docstatus": 0
+                "docstatus": ["in", [0, 1]]  # 0 = Draft, 1 = Submitted
             },
-            fields=["name"],
+            fields=["name", "docstatus"],
             order_by="employee_name asc"
         )
         
         if not salary_slips:
             frappe.msgprint(
-                _("لا توجد كشوف رواتب مرحلة لهذا الـ Payroll Entry"),
+                _("لا توجد كشوف رواتب لهذا الـ Payroll Entry"),
                 alert=True,
                 indicator="orange"
             )
@@ -57,190 +37,173 @@ class PayrollDetailsView(Document):
         for slip in salary_slips:
             salary_slip = frappe.get_doc("Salary Slip", slip.name)
             
-            # بناء HTML لعرض التفاصيل
-            salary_html = self.build_salary_slip_html(salary_slip)
+            # استخراج بيانات الموظف
+            employee_data = self.extract_employee_data(salary_slip)
             
             # إضافة صف جديد للموظف
-            self.append("employees", {
-                "employee": salary_slip.employee,
-                "employee_name": salary_slip.employee_name,
-                "department": salary_slip.department,
-                "designation": salary_slip.designation,
-                "gross_pay": salary_slip.gross_pay,
-                "total_deduction": salary_slip.total_deduction,
-                "net_pay": salary_slip.net_pay,
-                "payment_days": salary_slip.payment_days or 0,
-                "leave_without_pay": salary_slip.leave_without_pay or 0,
-                "absent_days": salary_slip.absent_days or 0,
-                "salary_slip_html": salary_html,
-                "salary_slip_ref": salary_slip.name
-            })
+            self.append("employees", employee_data)
         
         # عرض رسالة نجاح
+        draft_count = sum(1 for s in salary_slips if s.docstatus == 0)
+        submitted_count = sum(1 for s in salary_slips if s.docstatus == 1)
+        
         frappe.msgprint(
-            _("تم تحميل بيانات {0} موظف بنجاح").format(len(self.employees)),
+            _("تم تحميل بيانات {0} موظف ({1} مرحل، {2} مسودة)").format(
+                len(self.employees), submitted_count, draft_count
+            ),
             alert=True,
             indicator="green"
         )
     
-    def build_salary_slip_html(self, salary_slip):
-        """بناء HTML احترافي لعرض تفاصيل كشف الراتب"""
+    def extract_employee_data(self, salary_slip):
+        """استخراج بيانات الموظف من كشف الراتب"""
         
-        html = f"""
-        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px; margin: 10px 0; font-family: Arial, sans-serif;">
-            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                <!-- قسم الاستحقاقات -->
-                <div style="flex: 1; min-width: 300px;">
-                    <h4 style="color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 5px; margin: 0 0 10px 0;">
-                        💰 الاستحقاقات (Earnings)
-                    </h4>
-                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;">
-                        <thead>
-                            <tr style="background: #e8f5e9;">
-                                <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">المكون</th>
-                                <th style="padding: 8px; text-align: left; border: 1px solid #ddd; width: 120px;">المبلغ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        """
+        # الحصول على معلومات البنك من Employee
+        employee_doc = frappe.get_doc("Employee", salary_slip.employee)
+        bank_account_no = ""
+        bank_name = ""
         
-        # إضافة الاستحقاقات
-        total_earnings = 0
+        if employee_doc.bank_ac_no:
+            bank_account_no = employee_doc.bank_ac_no
+        if employee_doc.bank_name:
+            bank_name = employee_doc.bank_name
+        
+        # خريطة المكونات -ربط اسم المكون بالحقل
+        component_mapping = {
+            # الاستحقاقات
+            "الراتب الاساسي - تشغيلي": "basic_salary_operational",
+            "الراتب الأساسي - تشغيلي": "basic_salary_operational",
+            "بدلات أخرى تشغيلى": "other_allowances_operational",
+            "بدل السكن - تشغيلي": "housing_allowance_operational",
+            "بدل نقل - تشغيلي": "transport_allowance_operational",
+            "بدلات أخرى تشغيلي": "other_operational_allowances",
+            "الراتب الاساسي - اداري": "basic_salary_admin",
+            "الراتب الأساسي - اداري": "basic_salary_admin",
+            "استحقاقات اخرى - تشغيلى": "other_earnings_operational",
+            "بدل السكن - اداري": "housing_allowance_admin",
+            "بدل نقل - اداري": "transport_allowance_admin",
+            "بدلات أخرى إدارى": "other_allowances_admin",
+            "استحقاقات اخرى - ادارى": "other_earnings_admin",
+            
+            # المستقطعات
+            "خصم سلفة": "loan_deduction",
+            "خصم غياب - تشغيلي": "absence_deduction_operational",
+            "خصم تامينات اجتماعية": "social_insurance_deduction",
+            "تأمينات إجتماعيه تشغيلى": "social_insurance_deduction",
+            "جزاءات إداريه - تشغيلي": "administrative_penalties_operational",
+            "خصم اخرى -تشغيلى": "other_deduction_operational",
+            "خصم أخرى اداري": "other_deduction_admin",
+            "خصم اخرى - ادارى": "other_deduction_admin",
+            "سداد القروض": "loan_repayment",
+            "خصم غياب - اداري": "absence_deduction_admin",
+            "غياب إدارى": "absence_deduction_admin",
+            "جزاءات إداريه - اداري": "administrative_penalties_admin",
+            "جزاءات إداريه  - اداري": "administrative_penalties_admin",
+        }
+        
+        # تهيئة البيانات
+        employee_row = {
+            "employee": salary_slip.employee,
+            "employee_name": salary_slip.employee_name,
+            "bank_account_no": bank_account_no,
+            "bank_name": bank_name,
+            "department": salary_slip.department,
+            "designation": salary_slip.designation,
+            "gross_pay": salary_slip.gross_pay,
+            "total_deduction": salary_slip.total_deduction,
+            "net_pay": salary_slip.net_pay,
+            "payment_days": salary_slip.payment_days or 0,
+            "leave_without_pay": salary_slip.leave_without_pay or 0,
+            "absent_days": salary_slip.absent_days or 0,
+            "salary_slip_ref": salary_slip.name,
+        }
+        
+        # معالجة الاستحقاقات
         if salary_slip.earnings:
             for earning in salary_slip.earnings:
-                amount_formatted = frappe.format_value(earning.amount, {'fieldtype': 'Currency'})
-                html += f"""
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">
-                                    {earning.salary_component}
-                                </td>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: bold;">
-                                    {amount_formatted}
-                                </td>
-                            </tr>
-                """
-                total_earnings += earning.amount
-        else:
-            html += """
-                            <tr>
-                                <td colspan="2" style="padding: 8px; text-align: center; color: #999;">
-                                    لا توجد استحقاقات
-                                </td>
-                            </tr>
-            """
+                component_name = earning.salary_component
+                if component_name in component_mapping:
+                    field_name = component_mapping[component_name]
+                    employee_row[field_name] = earning.amount
         
-        total_formatted = frappe.format_value(total_earnings, {'fieldtype': 'Currency'})
-        html += f"""
-                            <tr style="background: #c8e6c9; font-weight: bold;">
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">الإجمالي</td>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: left;">
-                                    {total_formatted}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- قسم المستقطعات -->
-                <div style="flex: 1; min-width: 300px;">
-                    <h4 style="color: #c62828; border-bottom: 2px solid #c62828; padding-bottom: 5px; margin: 0 0 10px 0;">
-                        📉 المستقطعات (Deductions)
-                    </h4>
-                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px;">
-                        <thead>
-                            <tr style="background: #ffebee;">
-                                <th style="padding: 8px; text-align: right; border: 1px solid #ddd;">المكون</th>
-                                <th style="padding: 8px; text-align: left; border: 1px solid #ddd; width: 120px;">المبلغ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        """
-        
-        # إضافة المستقطعات
-        total_deductions = 0
+        # معالجة المستقطعات
         if salary_slip.deductions:
             for deduction in salary_slip.deductions:
-                amount_formatted = frappe.format_value(deduction.amount, {'fieldtype': 'Currency'})
-                html += f"""
-                            <tr>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">
-                                    {deduction.salary_component}
-                                </td>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: left; font-weight: bold;">
-                                    {amount_formatted}
-                                </td>
-                            </tr>
-                """
-                total_deductions += deduction.amount
-        else:
-            html += """
-                            <tr>
-                                <td colspan="2" style="padding: 8px; text-align: center; color: #999;">
-                                    لا توجد مستقطعات
-                                </td>
-                            </tr>
-            """
+                component_name = deduction.salary_component
+                if component_name in component_mapping:
+                    field_name = component_mapping[component_name]
+                    employee_row[field_name] = deduction.amount
         
-        deduction_formatted = frappe.format_value(total_deductions, {'fieldtype': 'Currency'})
-        html += f"""
-                            <tr style="background: #ffcdd2; font-weight: bold;">
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">الإجمالي</td>
-                                <td style="padding: 8px; border: 1px solid #ddd; text-align: left;">
-                                    {deduction_formatted}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- معلومات الحضور -->
-            <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 5px; border: 1px solid #e0e0e0;">
-                <h4 style="color: #1565c0; margin: 0 0 10px 0; font-size: 14px;">📅 معلومات الحضور</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; font-size: 13px;">
-                    <div>
-                        <span style="color: #666;">أيام العمل:</span>
-                        <strong style="margin-right: 5px; color: #333;">{salary_slip.payment_days or 0}</strong>
-                    </div>
-                    <div>
-                        <span style="color: #666;">إجازات بدون راتب:</span>
-                        <strong style="margin-right: 5px; color: #333;">{salary_slip.leave_without_pay or 0}</strong>
-                    </div>
-                    <div>
-                        <span style="color: #666;">أيام الغياب:</span>
-                        <strong style="margin-right: 5px; color: #333;">{salary_slip.absent_days or 0}</strong>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- الصافي النهائي -->
-            <div style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        color: white; border-radius: 8px; text-align: center;">
-                <h3 style="margin: 0; font-size: 16px; font-weight: normal;">💵 صافي الراتب (Net Pay)</h3>
-                <div style="font-size: 28px; font-weight: bold; margin-top: 10px;">
-                    {frappe.format_value(salary_slip.net_pay, {'fieldtype': 'Currency'})}
-                </div>
-            </div>
-            
-            <!-- رابط كشف الراتب -->
-            <div style="margin-top: 15px; text-align: center;">
-                <a href="/app/salary-slip/{salary_slip.name}" target="_blank" 
-                   style="display: inline-block; padding: 8px 20px; background: #1976d2; color: white; 
-                          text-decoration: none; border-radius: 4px; font-size: 13px;">
-                    📄 عرض كشف الراتب الكامل
-                </a>
-            </div>
-        </div>
-        """
-        
-        return html
+        return employee_row
 
 
-# Whitelisted methods (يمكن استدعاؤها من JavaScript)
 @frappe.whitelist()
 def refresh_employee_data(docname):
     """تحديث بيانات الموظفين يدوياً"""
     doc = frappe.get_doc("Payroll Details View", docname)
     doc.load_employee_data()
     doc.save()
-    return {"message": _("تم تحديث البيانات بنجاح"), "employees_count": len(doc.employees)}
+    return {
+        "message": _("تم تحديث البيانات بنجاح"), 
+        "employees_count": len(doc.employees)
+    }
+
+
+@frappe.whitelist()
+def export_to_excel(docname):
+    """تصدير البيانات إلى Excel"""
+    from frappe.utils.xlsxutils import make_xlsx
+    
+    doc = frappe.get_doc("Payroll Details View", docname)
+    
+    # إعداد البيانات للتصدير
+    data = []
+    
+    # العناوين
+    headers = [
+        "الموظف", "اسم الموظف", "Bank A/C No.", "Bank Name", "المناصب",
+        "الراتب الأساسي - تشغيلي", "بدلات أخرى تشغيلى", "بدل السكن - تشغيلي",
+        "بدل نقل - تشغيلي", "بدلات أخرى تشغيلي", "الراتب الأساسي - اداري",
+        "استحقاقات اخرى - تشغيلى", "إجمالي الأجور",
+        "خصم سلفة", "خصم غياب - تشغيلي", "خصم تامينات اجتماعية",
+        "جزاءات إداريه - تشغيلي", "خصم اخرى -تشغيلى", "خصم أخرى اداري",
+        "سداد القروض", "مجموع الخصم", "صافي الراتب", "ملاحظات"
+    ]
+    data.append(headers)
+    
+    # البيانات
+    for emp in doc.employees:
+        row = [
+            emp.employee,
+            emp.employee_name,
+            emp.bank_account_no or "",
+            emp.bank_name or "",
+            emp.designation or "",
+            emp.basic_salary_operational or 0,
+            emp.other_allowances_operational or 0,
+            emp.housing_allowance_operational or 0,
+            emp.transport_allowance_operational or 0,
+            emp.other_operational_allowances or 0,
+            emp.basic_salary_admin or 0,
+            emp.other_earnings_operational or 0,
+            emp.gross_pay or 0,
+            emp.loan_deduction or 0,
+            emp.absence_deduction_operational or 0,
+            emp.social_insurance_deduction or 0,
+            emp.administrative_penalties_operational or 0,
+            emp.other_deduction_operational or 0,
+            emp.other_deduction_admin or 0,
+            emp.loan_repayment or 0,
+            emp.total_deduction or 0,
+            emp.net_pay or 0,
+            emp.notes or ""
+        ]
+        data.append(row)
+    
+    # إنشاء ملف Excel
+    xlsx_file = make_xlsx(data, "Payroll Details")
+    
+    frappe.response['filename'] = f'payroll_details_{docname}.xlsx'
+    frappe.response['filecontent'] = xlsx_file.getvalue()
+    frappe.response['type'] = 'binary'
+ENDOFPYTHON
