@@ -8,35 +8,81 @@
  "field_order": [
   "employee",
   "employee_name",
+  "bank_account_no",
+  "bank_name",
+  "column_break_1",
   "department",
   "designation",
-  "column_break_1",
+  "salary_slip_ref",
+  "section_earnings",
+  "basic_salary_operational",
+  "other_allowances_operational",
+  "housing_allowance_operational",
+  "transport_allowance_operational",
+  "other_operational_allowances",
+  "basic_salary_admin",
+  "other_earnings_operational",
+  "column_break_earnings",
+  "housing_allowance_admin",
+  "transport_allowance_admin",
+  "other_allowances_admin",
+  "other_earnings_admin",
+  "section_totals",
   "gross_pay",
+  "column_break_totals",
   "total_deduction",
+  "column_break_totals2",
   "net_pay",
-  "section_break_attendance",
+  "section_deductions",
+  "loan_deduction",
+  "absence_deduction_operational",
+  "social_insurance_deduction",
+  "administrative_penalties_operational",
+  "other_deduction_operational",
+  "column_break_deductions",
+  "other_deduction_admin",
+  "loan_repayment",
+  "absence_deduction_admin",
+  "administrative_penalties_admin",
+  "section_attendance",
   "payment_days",
   "leave_without_pay",
   "absent_days",
-  "section_break_details",
-  "salary_slip_html",
-  "salary_slip_ref"
+  "section_notes",
+  "notes"
  ],
  "fields": [
   {
    "fieldname": "employee",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Employee",
+   "label": "الموظف",
    "options": "Employee",
-   "read_only": 1
+   "read_only": 1,
+   "reqd": 1
   },
   {
    "fieldname": "employee_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Employee Name",
+   "label": "اسم الموظف",
    "read_only": 1
+  },
+  {
+   "fieldname": "bank_account_no",
+   "fieldtype": "Data",
+   "label": "Bank A/C No.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "label": "Bank Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "department",
@@ -48,38 +94,196 @@
   {
    "fieldname": "designation",
    "fieldtype": "Data",
-   "label": "Designation",
+   "in_list_view": 1,
+   "label": "المناصب",
    "read_only": 1
   },
   {
-   "fieldname": "column_break_1",
+   "fieldname": "salary_slip_ref",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Salary Slip",
+   "options": "Salary Slip",
+   "read_only": 1
+  },
+  {
+   "collapsible": 0,
+   "fieldname": "section_earnings",
+   "fieldtype": "Section Break",
+   "label": "الاستحقاقات (Earnings)"
+  },
+  {
+   "fieldname": "basic_salary_operational",
+   "fieldtype": "Currency",
+   "label": "الراتب الأساسي - تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_allowances_operational",
+   "fieldtype": "Currency",
+   "label": "بدلات أخرى تشغيلى",
+   "read_only": 1
+  },
+  {
+   "fieldname": "housing_allowance_operational",
+   "fieldtype": "Currency",
+   "label": "بدل السكن - تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transport_allowance_operational",
+   "fieldtype": "Currency",
+   "label": "بدل نقل - تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_operational_allowances",
+   "fieldtype": "Currency",
+   "label": "بدلات أخرى تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "basic_salary_admin",
+   "fieldtype": "Currency",
+   "label": "الراتب الأساسي - اداري",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_earnings_operational",
+   "fieldtype": "Currency",
+   "label": "استحقاقات اخرى - تشغيلى",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_earnings",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "housing_allowance_admin",
+   "fieldtype": "Currency",
+   "label": "بدل السكن - اداري",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transport_allowance_admin",
+   "fieldtype": "Currency",
+   "label": "بدل نقل - اداري",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_allowances_admin",
+   "fieldtype": "Currency",
+   "label": "بدلات أخرى إدارى",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_earnings_admin",
+   "fieldtype": "Currency",
+   "label": "استحقاقات اخرى - ادارى",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_totals",
+   "fieldtype": "Section Break",
+   "label": "الإجماليات"
   },
   {
    "fieldname": "gross_pay",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Gross Pay",
+   "label": "إجمالي الأجور",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "total_deduction",
    "fieldtype": "Currency",
-   "label": "Total Deduction",
+   "label": "مجموع الخصم",
    "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals2",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "net_pay",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Net Pay",
+   "label": "صافي الراتب",
+   "read_only": 1
+  },
+  {
+   "collapsible": 0,
+   "fieldname": "section_deductions",
+   "fieldtype": "Section Break",
+   "label": "المستقطعات (Deductions)"
+  },
+  {
+   "fieldname": "loan_deduction",
+   "fieldtype": "Currency",
+   "label": "خصم سلفة",
+   "read_only": 1
+  },
+  {
+   "fieldname": "absence_deduction_operational",
+   "fieldtype": "Currency",
+   "label": "خصم غياب - تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "social_insurance_deduction",
+   "fieldtype": "Currency",
+   "label": "خصم تامينات اجتماعية",
+   "read_only": 1
+  },
+  {
+   "fieldname": "administrative_penalties_operational",
+   "fieldtype": "Currency",
+   "label": "جزاءات إداريه - تشغيلي",
+   "read_only": 1
+  },
+  {
+   "fieldname": "other_deduction_operational",
+   "fieldtype": "Currency",
+   "label": "خصم اخرى -تشغيلى",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_deductions",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "other_deduction_admin",
+   "fieldtype": "Currency",
+   "label": "خصم أخرى اداري",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loan_repayment",
+   "fieldtype": "Currency",
+   "label": "سداد القروض",
+   "read_only": 1
+  },
+  {
+   "fieldname": "absence_deduction_admin",
+   "fieldtype": "Currency",
+   "label": "خصم غياب - اداري",
+   "read_only": 1
+  },
+  {
+   "fieldname": "administrative_penalties_admin",
+   "fieldtype": "Currency",
+   "label": "جزاءات إداريه - اداري",
    "read_only": 1
   },
   {
    "collapsible": 1,
-   "fieldname": "section_break_attendance",
+   "fieldname": "section_attendance",
    "fieldtype": "Section Break",
-   "label": "Attendance Details"
+   "label": "معلومات الحضور"
   },
   {
    "fieldname": "payment_days",
@@ -100,23 +304,15 @@
    "read_only": 1
   },
   {
-   "collapsible": 0,
-   "fieldname": "section_break_details",
+   "collapsible": 1,
+   "fieldname": "section_notes",
    "fieldtype": "Section Break",
-   "label": "Salary Components Details"
+   "label": "ملاحظات"
   },
   {
-   "fieldname": "salary_slip_html",
-   "fieldtype": "HTML",
-   "label": "Salary Slip Details"
-  },
-  {
-   "fieldname": "salary_slip_ref",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Salary Slip Reference",
-   "options": "Salary Slip",
-   "read_only": 1
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "ملاحظات"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -132,3 +328,4 @@
  "sort_order": "DESC",
  "states": []
 }
+ENDOFJSON
