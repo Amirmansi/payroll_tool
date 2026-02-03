@@ -206,4 +206,3 @@ def export_to_excel(docname):
     frappe.response['filename'] = f'payroll_details_{docname}.xlsx'
     frappe.response['filecontent'] = xlsx_file.getvalue()
     frappe.response['type'] = 'binary'
-ENDOFPYTHON
