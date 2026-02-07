@@ -144,4 +144,3 @@ frappe.ui.form.on('Payroll Details Employee', {
         // يمكنك إضافة منطق عند إضافة صف جديد
     }
 });
-ENDOFJS
